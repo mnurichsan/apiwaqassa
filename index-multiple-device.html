@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whatsapp API by Ngekoding</title>
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<style>
+	.client {
+		border: 1px solid #ccc;
+		padding: 20px;
+		box-sizing: border-box;
+		display: inline-block;
+		margin: 10px;
+	}
+	.hide {
+		display: none;
+	}
+	</style>
+</head>
+<body>
+	<div id="app">
+		<div class="container">
+			<div class="card mt-3">
+				<div class="card-header">
+					<h1 class="text-center">Qassa Dev WA API</h1>
+				</div>
+				<div class="card-body">
+					<div class="row">
+						<div class="col">
+							<p>Powered by QASSA</p>
+							<div class="form-container">
+									<div class="form-group">
+										<label>ID</label>
+										<input type="text" id="client-id" class="form-control" placeholder="Masukkan ID">
+									</div>
+									<div class="form-group">
+										<label for="client-description">Deskripsi</label>
+										<textarea rows="3" id="client-description" class="form-control" placeholder="Masukkan deskripsi"></textarea>
+									</div>
+								<button class="btn btn-primary add-client-btn">Tambah Client</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col">
+					<div class="client-container">
+							<div class="client hide">
+								<div class="card" style="width: 18rem;">
+									<img src="" alt="QR Code" id="qrcode">
+									<div class="card-body">
+										<h5 class="card-title title"></h5>
+										<p class="card-text description"></p>
+										<h3>Logs:</h3>
+										<ul class="logs"></ul>
+									</div>
+								</div>
+							</div>
+					</div>
+				</div>
+			</div>			
+		</div>
+		
+	</div>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+	<script>
+		$(document).ready(function() {
+			var socket = io();
+
+			// Ketika button tambah diklik
+			$('.add-client-btn').click(function() {
+				var clientId = $('#client-id').val();
+				var clientDescription = $('#client-description').val();
+				var template = $('.client').first().clone()
+										   .removeClass('hide')
+										   .addClass(clientId);
+				template.find('.title').html(clientId);
+				template.find('.description').html(clientDescription);
+				$('.client-container').append(template);
+
+				socket.emit('create-session', {
+					id: clientId,
+					description: clientDescription
+				});
+			});
+
+			socket.on('init', function(data) {
+				$('.client-container .client').not(':first').remove();
+				console.log(data);
+				for (var i = 0; i < data.length; i++) {
+					var session = data[i];
+
+					var clientId = session.id;
+					var clientDescription = session.description;
+					var template = $('.client').first().clone()
+											   .removeClass('hide')
+											   .addClass(clientId);
+					template.find('.title').html(clientId);
+					template.find('.description').html(clientDescription);
+					$('.client-container').append(template);
+
+					if (session.ready) {
+						$(`.client.${session.id} .logs`).append($('<li>').text('Whatsapp is ready!'));
+					} else {
+						$(`.client.${session.id} .logs`).append($('<li>').text('Connecting...'));
+					}
+				}
+			});
+
+			socket.on('remove-session', function(id) {
+				$(`.client.${id}`).remove();
+			});
+
+			socket.on('message', function(data) {
+				$(`.client.${data.id} .logs`).append($('<li>').text(data.text));
+			});
+
+			socket.on('qr', function(data) {
+				$(`.client.${data.id} #qrcode`).attr('src', data.src);
+				$(`.client.${data.id} #qrcode`).show();
+			});
+
+			socket.on('ready', function(data) {
+				$(`.client.${data.id} #qrcode`).hide();
+			});
+
+			socket.on('authenticated', function(data) {
+				$(`.client.${data.id} #qrcode`).hide();
+			});
+		});
+	</script>
+</body>
+</html>
